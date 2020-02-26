@@ -1,6 +1,7 @@
 import torch
 from lfw_utils import loaddata, loadmodel, align_crop
-from src.mtcnn import MTCNN
+from mtcnn_pytorch.mtcnn import MTCNN
+from models.model import load_model
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 import pandas as pd
@@ -8,14 +9,14 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-arcface = loadmodel('arcface', 'E:\download\BaiduNetdiskDownload\model_ir_se50.pth')
+arcface = load_model('resnet50', pretrained=True)
 mtcnn = MTCNN(device=device)
 
 imgdataset = ImageFolder('./data/facebank')
 imgs = []
 transf = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize([0.5,0.5,0.5],[0.5,0.5,0.5])
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 labels = []
 for img, label in imgdataset:

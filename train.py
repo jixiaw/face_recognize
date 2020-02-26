@@ -31,6 +31,7 @@ class learner(object):
         self.testdataloader = DataLoader(self.testdataset, batch_size=32, shuffle=False)
 
     def train(self, steps=20):
+        max_acc = 0
         num_batch = len(self.traindataloader)
         for step in range(steps):
             for i, (x, y) in enumerate(self.traindataloader):
@@ -47,6 +48,9 @@ class learner(object):
                     print('step: {}/{}, batch: {}/{}, loss: {}'.format(step+1, steps, i+1, num_batch, loss.item()))
             acc = np.mean(self.eval())
             print(acc)
+            if acc > max_acc:
+                max_acc = acc
+                torch.save(self.backbone.state_dict(), 'model_step{}'.format(step))
 
     def eval(self):
         print('Evaluating...')
@@ -54,9 +58,6 @@ class learner(object):
         dists = dists_embeddings(embs1, embs2)
         acc, threshold = cal_10fold_acc(dists, y_true)
         return acc
-
-
-
 
 
 if __name__ == '__main__':

@@ -6,17 +6,16 @@ import numpy as np
 from tqdm import tqdm
 import os
 import scipy
-from lfw_utils import loaddata, loadmodel, dists_embeddings, img_pairs2embeddings, lfwROC, compute_distances
+from lfw_utils import loaddata, dists_embeddings, img_pairs2embeddings, lfwROC, compute_distances
+from models.model import load_model
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-arcface = loadmodel('arcface', 'E:\download\BaiduNetdiskDownload\model_ir_se50.pth')
-mobileface = loadmodel('mobile', 'E:\download\BaiduNetdiskDownload\model_mobilefacenet.pth')
-facenet = loadmodel('facenet', '')
-# print(arcface.__class__.__name__)
-nets = [arcface, mobileface, facenet]
+resnet50 = load_model('resnet50', pretrained=True)
+mobileface = load_model('mobilefacenet', pretrained=True)
+facenet = load_model('facenet', pretrained=True)
 
 
-def evallfw(net, device, load_data=False):
+def evallfw(net, device):
     dataname = './data/{}_lfw.mat'.format(net.__class__.__name__)
     if os.path.exists(dataname):
         result = scipy.io.loadmat(dataname)
@@ -88,8 +87,8 @@ def lfw_cwc(net, topk=20):
     return acc
 
 
-# print(lfw_cwc(mobileface))
+print(lfw_cwc(mobileface))
 
-evallfw(arcface, device, load_data=False)
-evallfw(mobileface, device, load_data=False)
-evallfw(facenet, device, load_data=False)
+evallfw(resnet50, device)
+evallfw(mobileface, device)
+evallfw(facenet, device)

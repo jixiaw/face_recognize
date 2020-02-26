@@ -7,7 +7,7 @@ from PIL import Image
 from tqdm import tqdm
 from models.insightface import Backbone, MobileFaceNet
 import os
-from models.inception_resnet_v1 import InceptionResnetV1
+from models.inception_v1 import InceptionResnetV1
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import KFold
 from skimage import transform as transf
@@ -59,7 +59,7 @@ def loadmodel(model, model_path, pairs_path=None, data_dir=None):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     img_size = 112
     if model == 'facenet':
-        net = InceptionResnetV1(pretrained='vggface2', classify=False, device=device).eval()
+        net = InceptionResnetV1().eval()
         img_size = 160
     elif model == 'arcface':
         net = Backbone(50, 0.6, 'ir_se').to(device).eval()
@@ -184,23 +184,23 @@ def compute_distances(A, B):
     # 计算 A 中每个向量与 B 每个向量的距离
     # input: A: m * k, B: n * k
     # output: m * n
-    
+
     m = np.shape(A)[0]
     n = np.shape(B)[0]
     M = np.dot(A, B.T)
-    H = np.tile(np.matrix(np.square(A).sum(axis=1)).T,(1,n))
-    K = np.tile(np.matrix(np.square(B).sum(axis=1)),(m,1))
+    H = np.tile(np.square(A).sum(axis=1).T, (1, n))
+    K = np.tile(np.square(B).sum(axis=1), (m, 1))
     return np.sqrt(-2 * M + H + K)
 
 
 # 人脸对齐裁剪
 def align_crop(img, landmarks, imgsize=None):
     src = np.array([
-        [30.29459953,  51.69630051],
-        [65.53179932,  51.50139999],
-        [48.02519989,  71.73660278],
-        [33.54930115,  92.3655014],
-        [62.72990036,  92.20410156]], dtype=np.float32)
+        [30.29459953, 51.69630051],
+        [65.53179932, 51.50139999],
+        [48.02519989, 71.73660278],
+        [33.54930115, 92.3655014],
+        [62.72990036, 92.20410156]], dtype=np.float32)
     crop_size = np.array((96, 112))
     if imgsize == 112:
         size_diff = imgsize - crop_size
@@ -209,12 +209,12 @@ def align_crop(img, landmarks, imgsize=None):
     facial5points = np.array(landmarks, dtype=np.float32)
     dst = np.squeeze(facial5points)
     if len(dst.shape) == 1:
-        facial5points = np.array([[dst[j],dst[j+5]] for j in range(5)])
+        facial5points = np.array([[dst[j], dst[j + 5]] for j in range(5)])
     # else:
     #     facial5points = np.array(landmarks, dtype=np.float32)
     tform = transf.SimilarityTransform()
     tform.estimate(facial5points, src)
-    M = tform.params[0:2,:]
+    M = tform.params[0:2, :]
     img_cv2 = np.array(img)[..., ::-1]
     warped = cv2.warpAffine(img_cv2, M, (crop_size[0], crop_size[1]), borderValue=0.0)
     warped = Image.fromarray(warped[..., ::-1])
