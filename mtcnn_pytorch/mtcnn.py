@@ -17,8 +17,8 @@ class MTCNN():
         self.rnet = RNet().to(self.device).eval()
         self.onet = ONet().to(self.device).eval()
 
-    def get_align_faces(self, image, image_size=(112, 112), return_largest=False, return_boxes=False, return_tensor=False):
-        bounding_boxes, landmarks = self.detect_faces(image)
+    def get_align_faces(self, image, image_size=(112, 112), return_largest=False, return_boxes=False, return_tensor=False, min_face_size=20.0):
+        bounding_boxes, landmarks = self.detect_faces(image, min_face_size=min_face_size)
         num_faces = len(bounding_boxes)
         if num_faces == 0:
             if return_boxes:
@@ -52,7 +52,7 @@ class MTCNN():
             return faces
 
     def detect_faces(self, image, min_face_size=20.0, thresholds=[0.6, 0.7, 0.8],
-                     nms_thresholds=[0.7, 0.7, 0.7], return_landmarks=True):
+                     nms_thresholds=[0.7, 0.7, 0.7]):
         # pnet, rnet, onet = PNet(), RNet(), ONet()
         # onet.eval()
         width, height = image.size
@@ -76,6 +76,8 @@ class MTCNN():
             boxes = self.run_first_stage(image, self.pnet, scale=s, threshold=thresholds[0])
             bounding_boxes.append(boxes)
         bounding_boxes = [i for i in bounding_boxes if i is not None]
+        if bounding_boxes == []:
+            return [], []
         bounding_boxes = np.vstack(bounding_boxes)
 
         keep = nms(bounding_boxes[:, 0:5], nms_thresholds[0])
@@ -119,34 +121,24 @@ class MTCNN():
         landmarks = landmarks[keep]
 
         # compute landmark points
-        if return_landmarks:
-            width = bounding_boxes[:, 2] - bounding_boxes[:, 0] + 1.0
-            height = bounding_boxes[:, 3] - bounding_boxes[:, 1] + 1.0
-            xmin, ymin = bounding_boxes[:, 0], bounding_boxes[:, 1]
-            landmarks[:, 0:5] = np.expand_dims(xmin, 1) + np.expand_dims(width, 1) * landmarks[:, 0:5]
-            landmarks[:, 5:10] = np.expand_dims(ymin, 1) + np.expand_dims(height, 1) * landmarks[:, 5:10]
+        width = bounding_boxes[:, 2] - bounding_boxes[:, 0] + 1.0
+        height = bounding_boxes[:, 3] - bounding_boxes[:, 1] + 1.0
+        xmin, ymin = bounding_boxes[:, 0], bounding_boxes[:, 1]
+        landmarks[:, 0:5] = np.expand_dims(xmin, 1) + np.expand_dims(width, 1) * landmarks[:, 0:5]
+        landmarks[:, 5:10] = np.expand_dims(ymin, 1) + np.expand_dims(height, 1) * landmarks[:, 5:10]
 
-            bounding_boxes = calibrate_box(bounding_boxes, offsets)
-            keep = nms(bounding_boxes, nms_thresholds[2], mode='min')
-            bounding_boxes = bounding_boxes[keep]
-            landmarks = landmarks[keep]
+        bounding_boxes = calibrate_box(bounding_boxes, offsets)
+        keep = nms(bounding_boxes, nms_thresholds[2], mode='min')
+        bounding_boxes = bounding_boxes[keep]
+        landmarks = landmarks[keep]
 
-            areas = (bounding_boxes[:, 2] - bounding_boxes[:, 0]) * (bounding_boxes[:, 3] - bounding_boxes[:, 1])
-            sort_index = np.argsort(areas)[::-1]
-            bounding_boxes = bounding_boxes[sort_index]
-            landmarks = landmarks[sort_index]
+        areas = (bounding_boxes[:, 2] - bounding_boxes[:, 0]) * (bounding_boxes[:, 3] - bounding_boxes[:, 1])
+        sort_index = np.argsort(areas)[::-1]
+        bounding_boxes = bounding_boxes[sort_index]
+        landmarks = landmarks[sort_index]
 
-            return bounding_boxes, landmarks
-        else:
-            bounding_boxes = calibrate_box(bounding_boxes, offsets)
-            keep = nms(bounding_boxes, nms_thresholds[2], mode='min')
-            bounding_boxes = bounding_boxes[keep]
+        return bounding_boxes, landmarks
 
-            areas = (bounding_boxes[:, 2] - bounding_boxes[:, 0]) * (bounding_boxes[:, 3] - bounding_boxes[:, 1])
-            sort_index = np.argsort(areas)[::-1]
-            bounding_boxes = bounding_boxes[sort_index]
-
-            return bounding_boxes
 
     def run_first_stage(self, image, net, scale, threshold):
         """
