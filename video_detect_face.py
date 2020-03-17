@@ -7,6 +7,7 @@ from PIL import Image
 from lfw_utils import align_crop
 from torchvision import transforms
 from models.model import load_model
+from detect_pipeline import load_data_from_database
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print("running on: {}".format(device))
@@ -55,8 +56,9 @@ def capture(net):
     cv2.namedWindow(windowName, cv2.WINDOW_NORMAL)
     print("按键Q-结束视频录制")
     flag = True
-    people_vec = pd.read_csv('./people.csv')
-    vec, name = load_vec(people_vec)
+    # people_vec = pd.read_csv('./people.csv')
+    # vec, name = load_vec(people_vec)
+    vec, name = load_data_from_database()
     while (cap.isOpened()):
         if keep_processing:
             ret, frame = cap.read()

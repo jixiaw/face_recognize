@@ -7,6 +7,7 @@ from PIL import Image
 from lfw_utils import align_crop
 from torchvision import transforms
 from models.model import load_model
+from database import Database
 
 
 def load_vec(df):
@@ -24,17 +25,53 @@ def cmp_vec(vec, embeddings, threshold=1.22):
         return -1
 
 
+def load_data_from_database(return_picnames=False):
+    db = Database()
+    success, result = db.search_all()
+    names = None
+    picnames = None
+    embs = None
+    if success:
+        names = [e[1] for e in result]
+        if return_picnames:
+            picnames = [e[2] for e in result]
+        embs_str = [e[3] for e in result]
+        embs = np.array([[float(e) for e in emb_str.split(',')] for emb_str in embs_str])
+    if return_picnames:
+        return embs, names, picnames
+    else:
+        return embs, names
+
+
 class FaceRecognizePipeline(object):
-    def __init__(self, model='resnet50', device=None, facevec='people.csv'):
+    def __init__(self, model='resnet50', device=None):
         if device is None:
-            self.device = torch.device('cpu')
+            self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         else:
             self.device = device
         self.mtcnn = MTCNN(device=self.device)
         self.net = load_model(model, device=self.device, pretrained=True)
-        self.vec, self.name = load_vec(pd.read_csv(facevec))
+        # self.vec, self.name = load_vec(pd.read_csv(facevec))
+        self.vec, self.name = load_data_from_database()
+
+    def img2embedding(self, image, flip=False):
+        '''
+        :param image:
+        :return: the embedding of biggest face in image
+        '''
+        face, box = self.mtcnn.get_align_faces(image, return_largest=True, return_boxes=True, return_tensor=True, min_face_size=50.0)
+        if box is not None and box != []:
+            embedding = self.net(face.to(self.device)).data.cpu().numpy()
+        else:
+            embedding = []
+        return embedding
 
     def forward(self, img_cv2, detect_only=False):
+        '''
+        :param img_cv2: The image of cv2 format
+        :param detect_only: If true: only detect; else detect and recognize
+        :return: The detected image of cv2 format
+        '''
         image = Image.fromarray(img_cv2[..., ::-1])
         if detect_only:
             boxes, landmarks = self.mtcnn.detect_faces(image,  min_face_size=50.0)
