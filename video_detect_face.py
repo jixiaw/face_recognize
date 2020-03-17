@@ -2,12 +2,14 @@ from mtcnn_pytorch.mtcnn import MTCNN
 import torch
 import numpy as np
 import cv2
+import os
 import pandas as pd
 from PIL import Image
 from lfw_utils import align_crop
 from torchvision import transforms
 from models.model import load_model
 from detect_pipeline import load_data_from_database
+from pathlib import Path
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print("running on: {}".format(device))
@@ -46,6 +48,39 @@ def process_align(img, landmarks, img_size=112):
         faces.append(transform(align_face))
     faces = torch.stack(faces)
     return faces
+
+
+def take_photo(name):
+    cap = cv2.VideoCapture(0)
+    windowName = "take_photo"
+    cv2.namedWindow(windowName, cv2.WINDOW_NORMAL)
+    path = Path('./data/facebank') / name
+    if os.path.exists(path):
+        n = len(os.listdir(path))
+    else:
+        os.mkdir(path)
+        n = 0
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.putText(frame, "Press space key to take photo.", (10, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2,
+                                cv2.LINE_AA)
+
+            cv2.imshow(windowName, frame)
+            key = cv2.waitKey(1) & 0xff
+            if key == ord(' '):
+                image = Image.fromarray(frame[..., ::-1])
+                faces = mtcnn.get_align_faces(image, return_largest=True)
+                if faces is []:
+                    print('No face')
+                else:
+                    n += 1
+                    face = np.array(faces[0])[..., ::-1]
+                    cv2.imwrite(str(path / (name + '_' + str(n) + '.jpg')), face)
+            if key == 27:
+                break
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 def capture(net):
@@ -94,7 +129,7 @@ def capture(net):
             # 接收键盘指令
             key = cv2.waitKey(1) & 0xFF
             # Esc 退出
-            if (key == 27):
+            if key == 27:
                 print("Quit Process ")
                 keep_processing = False
             # 空格开始、暂停
@@ -108,4 +143,5 @@ def capture(net):
 
 
 if __name__ == '__main__':
+    take_photo('jxw')
     capture(arcface)

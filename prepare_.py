@@ -35,7 +35,7 @@ def save_data_to_database():
                         img = Image.open(file)
                     except:
                         continue
-                    emb = facerecgnize.img2embeddings(img)
+                    emb = facerecgnize.img2embedding(img)
                     emb_str = ','.join([str(i) for i in emb[0]])
                     embs.append(emb)
                     names.append(str(path.name))
