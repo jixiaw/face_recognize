@@ -66,13 +66,20 @@ class FaceRecognizePipeline(object):
             embedding = []
         return embedding
 
-    def forward(self, img_cv2, detect_only=False):
+    def forward(self, image, detect_only=False):
         '''
-        :param img_cv2: The image of cv2 format
+        :param image: The image of cv2 format or PIL image
         :param detect_only: If true: only detect; else detect and recognize
         :return: The detected image of cv2 format
         '''
-        image = Image.fromarray(img_cv2[..., ::-1])
+        if image is None:
+            return None
+        if isinstance(image, np.ndarray):
+            img_cv2 = np.array(image)
+            image = Image.fromarray(img_cv2[..., ::-1])
+        else:
+            img_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        # image = Image.fromarray(img_cv2[..., ::-1])
         if detect_only:
             boxes, landmarks = self.mtcnn.detect_faces(image,  min_face_size=50.0)
             if len(boxes) > 0:
